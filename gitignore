@@ -4,6 +4,10 @@
 *.key
 secrets.*
 
+# Persönliche Claude-Code-Dateien
+CLAUDE.local.md
+.claude/settings.local.json
+
 # Test data (may contain real VINs)
 test-vins.*
 data/
