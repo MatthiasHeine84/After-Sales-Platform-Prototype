@@ -1,7 +1,7 @@
 // Smoke-Test: Server startet auf 127.0.0.1 und antwortet mit Status 200.
 const test = require('node:test');
 const assert = require('node:assert');
-const { createServer, HOST } = require('./server');
+const { createServer, HOST } = require('../server');
 
 test('Server antwortet auf 127.0.0.1 mit 200', async () => {
   const server = createServer();

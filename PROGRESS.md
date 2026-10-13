@@ -4,7 +4,8 @@
 - Design-Stilregeln liegen in `docs/design/README.md`.
 - Schritt 1 erledigt: Projektgerüst (`server.js` nur auf 127.0.0.1, `npm start`, `npm test` grün).
 - Schritt 2 (Texte, Du-Form, Begriff "Fahrgestellnummer", schlichter Nutzensatz) freigegeben, Wortlaut unten.
-- Nächster Schritt: 3, FIN-Normalisierung und Formatprüfung mit Tests.
+- Schritt 3 erledigt: `src/fin.js` (`validateFin`, Codes `empty`/`format`/`chars`), Tests in `test/`, `npm test` grün (7 Tests).
+- Nächster Schritt: 4, Speicher-Abgleich mit `data/vin-cache.json` (fehlend, leer, defekt) mit Tests.
 
 ## Texte der Oberfläche (freigegeben)
 
