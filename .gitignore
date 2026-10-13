@@ -23,3 +23,6 @@ build/
 .DS_Store
 .idea/
 .vscode/
+
+# Design-Referenz (Screenshot aus fremdem Demonstrator)
+docs/design/*.png

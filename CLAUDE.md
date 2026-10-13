@@ -1,6 +1,12 @@
 # FIN-Decoder
 
-Lokale Lern-Webseite: Man gibt eine FIN (VIN) ein, sie wird lokal in ihre Bestandteile zerlegt, dazu werden technische Fahrzeugdaten aus der Vincario-API angezeigt. Der Stack ist offen: Untersuche das Projekt, schlage einen Stack vor und lass ihn bestätigen, bevor du Code schreibst.
+Lokale Lern-Webseite: Man gibt eine FIN (VIN) ein. Bekannte FINs werden aus dem lokalen Speicher angezeigt, unbekannte über die Vincario-API abgefragt und gespeichert (Specs 01 bis 03). Stack ist Node.js. Das Framework (Express oder Node-Bordmittel) ist offen: Schlage es vor und lass es bestätigen, bevor du Code schreibst.
+
+## Specs und Design
+
+- Specs liegen in `docs/specs/NN-name.md`, jeweils eine pro Feature. Lies vor jeder Umsetzung die passende Spec. Weicht dein Plan von der Spec ab, frag nach, statt still abzuweichen.
+- Die Stilregeln der Oberfläche stehen in `docs/design/README.md`. Zielnutzer ist der Endanwender mit seinem eigenen Fahrzeug. In der Oberfläche erscheinen keine Hinweise auf die Datenherkunft, nur bei falschem FIN-Format und bei technischen Fehlern eine neutrale Meldung.
+- `docs/design/*.png` ist nur lokal (nicht im Repo).
 
 ## Arbeitsweise
 
