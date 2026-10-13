@@ -1,0 +1,25 @@
+# Secrets
+.env
+.env.*
+*.key
+secrets.*
+
+# Persönliche Claude-Code-Dateien
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Test data (may contain real VINs)
+test-vins.*
+data/
+
+# Dependencies and build output
+node_modules/
+__pycache__/
+.venv/
+dist/
+build/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
