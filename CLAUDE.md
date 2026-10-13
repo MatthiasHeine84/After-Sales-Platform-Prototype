@@ -5,7 +5,7 @@ Lokale Lern-Webseite: Man gibt eine FIN (VIN) ein. Bekannte FINs werden aus dem 
 ## Specs und Design
 
 - Specs liegen in `docs/specs/NN-name.md`, jeweils eine pro Feature. Lies vor jeder Umsetzung die passende Spec. Weicht dein Plan von der Spec ab, frag nach, statt still abzuweichen.
-- Die Stilregeln der Oberfläche stehen in `docs/design/README.md`. Zielnutzer ist der Endanwender mit seinem eigenen Fahrzeug. In der Oberfläche erscheinen keine Hinweise auf die Datenherkunft, nur bei falschem FIN-Format und bei technischen Fehlern eine neutrale Meldung.
+- Die Stilregeln der Oberfläche stehen in `docs/design/README.md`. Die Seite ist eine Landingpage für den Endanwender mit seinem eigenen Fahrzeug und läuft nur lokal auf localhost (kein Hosting). In der Oberfläche erscheinen keine Hinweise auf die Datenherkunft, nur bei falschem FIN-Format und bei technischen Fehlern eine neutrale Meldung.
 - `docs/design/*.png` ist nur lokal (nicht im Repo).
 
 ## Arbeitsweise
@@ -33,7 +33,9 @@ Lokale Lern-Webseite: Man gibt eine FIN (VIN) ein. Bekannte FINs werden aus dem 
 
 Trage Start-, Test- und Lint-Befehle erst ein, wenn sie existieren.
 
-- _noch offen_
+- Start: `npm start` (Server auf http://127.0.0.1:3000)
+- Test: `npm test` (Node-Bordmittel `node --test`, ohne Netzwerkzugriff nach außen)
+- Lint: keiner
 
 ## Fortschritt
 

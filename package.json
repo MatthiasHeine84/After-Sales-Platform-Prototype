@@ -1,0 +1,10 @@
+{
+  "name": "fin-decoder",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lokale Lern-Webseite: FIN eingeben und Fahrzeugdaten anzeigen",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  }
+}

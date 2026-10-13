@@ -26,7 +26,8 @@ Nicht in Spec 01:
 - Login, mehrere Nutzer.
 
 ## UI-Vorgaben
-- Zielnutzer ist der Endanwender mit seinem eigenen Fahrzeug, kein Fachpersonal.
+- Die Seite ist eine Landingpage für den Endanwender mit seinem eigenen Fahrzeug, kein Fachpersonal. Sie enthält eine kurze Überschrift mit einem Satz zum Nutzen und die Eingabe als Mittelpunkt. Texte ohne Fachbegriffe (kein "FIN-Decoder", kein "Cache"); der Wortlaut wird in Schritt 2 vorgeschlagen und freigegeben.
+- Die Seite läuft nur lokal auf `localhost` über einen kleinen Node-Prozess. Kein Hosting, keine Erreichbarkeit aus dem Netzwerk.
 - Es erscheinen keine Hinweise auf die Herkunft der Daten: weder "aus Speicher" noch Anbieter- oder API-Namen.
 - Hinweise erscheinen nur bei falschem Format der FIN (Kriterium 1) und bei technischen Fehlern (Kriterium 5).
 - Gestaltung nach `docs/design/README.md` (Stilregeln) und `docs/design/referenz-garage.png` (lokal, nicht im Repo). Sprache der Oberfläche: Deutsch.
