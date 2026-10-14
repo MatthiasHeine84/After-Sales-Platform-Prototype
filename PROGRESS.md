@@ -8,7 +8,8 @@
 - Schritt 4 erledigt: `src/cache.js` (`lookupFin`: found/unknown/error, nur lesend), Tests in `test/cache.test.js`, `npm test` grün (18 Tests).
 - Schritt 5 erledigt: `GET /?fin=` mit `src/page.js` (ungestaltet), Host-Prüfung, Sicherheits-Header, `npm test` grün (29 Tests).
 - Schritt 6 erledigt: Gestaltung nach Design-Regeln als `<style>` in `src/page.js`, CSP-Header, Hinweistext statt Platzhalter, `npm test` grün (31 Tests).
-- Nächster Schritt: Spec 02 (Mock-Decoder, Feldauswahl): `/clear`, Interview, Spec schreiben.
+- Spec 02 (Mock-Decoder und Fahrzeugkarte) liegt in `docs/specs/02-mock-decoder.md`; FIN ohne Daten bekommt eine Meldung (ersetzt "kein Text" aus Spec 01).
+- Nächster Schritt: Umsetzung Spec 02 in kleinen Schritten (Plan zuerst, z. B. `saveFin` mit Tests).
 
 ## Texte der Oberfläche (freigegeben)
 
@@ -21,4 +22,5 @@
 - Fehler Format: `Die Nummer muss genau 17 Zeichen haben und darf nur Buchstaben und Ziffern enthalten.`
 - Fehler I, O, Q: `Die Fahrgestellnummer darf keine Buchstaben I, O und Q enthalten. Bitte prüfe deine Eingabe.`
 - Technischer Fehler: `Daten momentan nicht verfügbar.`
-- Unbekannte Fahrgestellnummer: kein Text.
+- Fahrgestellnummer ohne Daten (ab Spec 02): `Zu dieser Fahrgestellnummer haben wir keine Daten.`
+- Bis zur Umsetzung von Spec 02 gilt im Code noch: unbekannte Fahrgestellnummer zeigt keinen Text.
