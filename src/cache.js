@@ -1,6 +1,7 @@
-// Abgleich einer FIN mit dem lokalen Speicher (JSON-Datei). Nur lesen, nie schreiben.
-// Keine Exceptions nach außen, keine Logs mit Inhalten.
+// Lokaler Speicher (JSON-Datei): lookupFin liest nur, saveFin schreibt (atomar, nie bei beschädigter Datei).
+// Keine Exceptions nach außen, keine Logs mit Inhalten, keine FIN in Fehlern.
 
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { MESSAGES } = require('./fin');
@@ -56,4 +57,47 @@ function lookupFin(fin, filePath = DEFAULT_FILE) {
   return { status: 'found', data: entry.data };
 }
 
-module.exports = { lookupFin };
+// Speichert { savedAt, source, data } unter der FIN. Ergebnis:
+// { status: 'saved' } | { status: 'found', data } (FIN gab es schon, nichts geändert) | { status: 'error', code, message }
+// Schreibt nie, wenn die Datei beschädigt ist oder der vorhandene Eintrag dieser FIN defekt ist.
+// Andere Einträge werden unverändert übernommen, auch wenn einer davon selbst fehlerhaft ist.
+function saveFin(fin, data, source, filePath = DEFAULT_FILE) {
+  if (typeof fin !== 'string' || typeof source !== 'string' || !isPlainObject(data)) return unavailable();
+
+  const { store, error } = readStore(filePath);
+  if (error) return error;
+
+  if (Object.hasOwn(store, fin)) {
+    const entry = store[fin];
+    if (!isPlainObject(entry) || !isPlainObject(entry.data)) return unavailable();
+    return { status: 'found', data: entry.data };
+  }
+
+  // defineProperty statt store[fin] = ...: ein Schlüssel wie "__proto__" bliebe sonst wirkungslos
+  const next = { ...store };
+  Object.defineProperty(next, fin, {
+    value: { savedAt: new Date().toISOString(), source, data },
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
+
+  // Erst in eine Temp-Datei im selben Ordner schreiben, dann umbenennen: nie eine halb geschriebene Datei
+  const dir = path.dirname(filePath);
+  const tmp = path.join(dir, `.${path.basename(filePath)}.${crypto.randomBytes(8).toString('hex')}.tmp`);
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`, { flag: 'wx' });
+    fs.renameSync(tmp, filePath);
+  } catch {
+    try {
+      fs.rmSync(tmp, { force: true });
+    } catch {
+      // Aufräumen ist best effort; der Fehler an den Aufrufer bleibt neutral
+    }
+    return unavailable();
+  }
+  return { status: 'saved' };
+}
+
+module.exports = { lookupFin, saveFin };
