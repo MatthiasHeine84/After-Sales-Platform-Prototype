@@ -12,6 +12,9 @@ CLAUDE.local.md
 test-vins.*
 data/
 
+# Einmal-Skripte (z. B. Vincario-Probe), nicht im Repo
+scratch/
+
 # Dependencies and build output
 node_modules/
 __pycache__/
