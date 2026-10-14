@@ -6,6 +6,7 @@ const MESSAGES = {
   format: 'Die Nummer muss genau 17 Zeichen haben und darf nur Buchstaben und Ziffern enthalten.',
   chars: 'Die Fahrgestellnummer darf keine Buchstaben I, O und Q enthalten. Bitte prüfe deine Eingabe.',
   unavailable: 'Daten momentan nicht verfügbar.',
+  nodata: 'Zu dieser Fahrgestellnummer haben wir keine Daten.',
 };
 
 function fail(code) {

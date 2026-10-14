@@ -97,8 +97,10 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   font-size: 1.4rem;
   letter-spacing: 0.04em;
 }
+.info { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+h2 { margin: 0 0 4px; font-size: 1.5rem; line-height: 1.2; font-weight: 800; }
+.subline { margin: 0 0 16px; color: var(--text-muted); }
 dl {
-  flex: 1;
   min-width: 0;
   display: grid;
   grid-template-columns: minmax(110px, max-content) 1fr;
@@ -124,25 +126,75 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-function formatValue(value) {
-  return typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
+// Anzeigbarer Text oder undefined: nur nicht-leere Texte und endliche Zahlen zählen.
+// Objekte, Listen, null, Wahrheitswerte und leere Texte gelten als fehlend (nie als JSON anzeigen).
+function toText(value) {
+  if (typeof value === 'string') return value.trim() === '' ? undefined : value.trim();
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  return undefined;
+}
+
+// Label -> Wert aus data.decode. Doppelte Labels: der erste gewinnt. Alles Unpassende wird übersprungen.
+function readFields(data) {
+  const fields = new Map();
+  const list = data && typeof data === 'object' ? data.decode : undefined;
+  if (!Array.isArray(list)) return fields;
+  for (const item of list) {
+    if (typeof item !== 'object' || item === null || Array.isArray(item)) continue;
+    if (typeof item.label !== 'string' || fields.has(item.label)) continue;
+    fields.set(item.label, toText(item.value));
+  }
+  return fields;
+}
+
+// Nur diese Felder werden angezeigt (Spec 02). Nicht angezeigt: Make Logo, Model ID, Transmission ID, Vehicle ID, Color ID.
+// Jede Zeile: deutsche Beschriftung und die Quell-Labels in Reihenfolge der Bevorzugung (erstes vorhandenes zählt).
+const LIST_ROWS = [
+  { title: 'Getriebe', labels: ['Transmission (full)', 'Transmission'] },
+  { title: 'Motorleistung', labels: ['Engine Power (kW)'], suffix: ' kW' },
+  { title: 'Motorcode', labels: ['Engine Code'] },
+  { title: 'Motormodell', labels: ['Engine Model'] },
+  { title: 'Farbe', labels: ['Color'] },
+  { title: 'Ausstattung', labels: ['Vehicle Specification'] },
+];
+
+function firstOf(fields, labels) {
+  for (const label of labels) {
+    const value = fields.get(label);
+    if (value !== undefined) return value;
+  }
+  return undefined;
 }
 
 function renderCard(data) {
-  const rows = Object.entries(data)
-    .map(([key, value]) => `<dt>${escapeHtml(key)}</dt><dd>${escapeHtml(formatValue(value))}</dd>`)
-    .join('');
+  const fields = readFields(data);
+  const title = [fields.get('Make'), fields.get('Model')].filter(Boolean).join(' ') || 'Dein Fahrzeug';
+  const subtitle = [fields.get('Model Year'), fields.get('Engine (full)')].filter(Boolean).join(' · ');
+
+  const rows = LIST_ROWS.map(({ title: name, labels, suffix = '' }) => {
+    const value = firstOf(fields, labels);
+    return value === undefined ? '' : `<dt>${escapeHtml(name)}</dt><dd>${escapeHtml(value + suffix)}</dd>`;
+  }).join('');
+
   return `<section class="card">
 <div class="tile" aria-hidden="true">AUTO</div>
-<dl>${rows}</dl>
+<div class="info">
+<h2>${escapeHtml(title)}</h2>
+${subtitle ? `<p class="subline">${escapeHtml(subtitle)}</p>` : ''}${rows ? `<dl>${rows}</dl>` : ''}
+</div>
 </section>`;
 }
 
 // input: Text, der im Feld stehen soll (wird auf 64 Zeichen gekürzt)
-// error: Meldungstext oder undefined; data: Objekt mit Fahrzeugfeldern oder undefined
-function renderPage({ input = '', error, data } = {}) {
+// error: Fehlermeldung (role="alert") oder undefined; notice: neutrale Meldung (role="status") oder undefined
+// data: Datensatz { decode: [{ label, value }] } oder undefined
+function renderPage({ input = '', error, notice, data } = {}) {
   const echo = escapeHtml(String(input).slice(0, MAX_ECHO));
-  const errorHtml = error ? `<p class="notice" role="alert">${escapeHtml(error)}</p>` : '';
+  const errorHtml = error
+    ? `<p class="notice" role="alert">${escapeHtml(error)}</p>`
+    : notice
+      ? `<p class="notice" role="status">${escapeHtml(notice)}</p>`
+      : '';
   const dataHtml = data ? renderCard(data) : '';
 
   return `<!doctype html>

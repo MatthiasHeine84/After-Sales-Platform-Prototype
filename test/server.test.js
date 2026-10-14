@@ -11,7 +11,11 @@ const { MESSAGES } = require('../src/fin');
 const FAKE_FIN = 'ABCDEFGH123456789'; // erfunden
 const OTHER_FIN = 'ZZZZZZZZ987654321'; // erfunden
 const STORE = JSON.stringify({
-  [FAKE_FIN]: { savedAt: '2026-01-01', source: 'mock', data: { make: 'Testmarke', note: '<b>fett</b>' } },
+  [FAKE_FIN]: {
+    savedAt: '2026-01-01',
+    source: 'mock',
+    data: { decode: [{ label: 'Make', value: 'Testmarke' }, { label: 'Model', value: '<b>fett</b>' }] },
+  },
 });
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fin-server-test-'));
