@@ -6,7 +6,8 @@
 - Schritt 2 (Texte, Du-Form, Begriff "Fahrgestellnummer", schlichter Nutzensatz) freigegeben, Wortlaut unten.
 - Schritt 3 erledigt: `src/fin.js` (`validateFin`, Codes `empty`/`format`/`chars`), Tests in `test/`, `npm test` grün (7 Tests).
 - Schritt 4 erledigt: `src/cache.js` (`lookupFin`: found/unknown/error, nur lesend), Tests in `test/cache.test.js`, `npm test` grün (18 Tests).
-- Nächster Schritt: 5, Formular und Abgleich im Server (`GET /?fin=`, `src/page.js`, ungestaltet).
+- Schritt 5 erledigt: `GET /?fin=` mit `src/page.js` (ungestaltet), Host-Prüfung, Sicherheits-Header, `npm test` grün (29 Tests).
+- Nächster Schritt: 6, Gestaltung nach Design-Regeln (`<style>` in `src/page.js`).
 
 ## Texte der Oberfläche (freigegeben)
 
