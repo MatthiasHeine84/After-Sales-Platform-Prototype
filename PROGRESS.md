@@ -7,9 +7,14 @@
 - Schritt 3 erledigt: `src/fin.js` (`validateFin`, Codes `empty`/`format`/`chars`), Tests in `test/`, `npm test` grün (7 Tests).
 - Schritt 4 erledigt: `src/cache.js` (`lookupFin`: found/unknown/error, nur lesend), Tests in `test/cache.test.js`, `npm test` grün (18 Tests).
 - Schritt 5 erledigt: `GET /?fin=` mit `src/page.js` (ungestaltet), Host-Prüfung, Sicherheits-Header, `npm test` grün (29 Tests).
-- Schritt 6 erledigt: Gestaltung nach Design-Regeln als `<style>` in `src/page.js`, CSP-Header, Hinweistext statt Platzhalter, `npm test` grün (31 Tests).
+- Schritt 6 erledigt: Gestaltung nach Design-Regeln als `<style>` in `src/page.js`, CSP-Header, Hinweistext statt Platzhalter, `npm test` grün (32 Tests; früher irrtümlich mit 31 angegeben).
 - Spec 02 (Mock-Decoder und Fahrzeugkarte) liegt in `docs/specs/02-mock-decoder.md`; FIN ohne Daten bekommt eine Meldung (ersetzt "kein Text" aus Spec 01).
-- Nächster Schritt: Umsetzung Spec 02 in kleinen Schritten (Plan zuerst, z. B. `saveFin` mit Tests).
+- Spec 02 umgesetzt (Code und Tests): `src/decoder/mock.js` (Fake-FINs `TESTMKA0000000001` bis `...03`), `saveFin` mit `readStore` in `src/cache.js`, Kartenmapping und `notice` in `src/page.js`, Verdrahtung in `server.js` (`createServer({cacheFile, decode})`). `npm test` grün (73 Tests: fin 7, cache 21, decoder 5, card 16, server 24).
+- Manueller Browser-Check erledigt (Desktop und schmal): Mock-FIN `...01` und `...03` (fehlende Felder) zeigen die Karte ohne Herkunftshinweis, gültige Nicht-Mock-FIN nur den Hinweis ohne Karte, `ABC` die Formatmeldung. Hash-Messung war unsauber: H1 und H2 wurden beide erst nach Schritt 2 genommen. Die Speicherdatei enthält genau die zwei erwarteten Einträge. Der Beleg, dass ein zweiter Aufruf nichts schreibt, läuft über den Servertest "Zweiter Aufruf … ohne Decoder-Aufruf" und das unveränderte `savedAt`, nicht über den Hash.
+- **Spec 02 abgeschlossen.**
+- Hinweis für Spec 03: `decode` wird asynchron. In `server.js` (`decodeAndStore`) muss dann `await` an den Decoder-Aufruf, die Handler-Funktion wird `async`. Gleichzeitige Abrufe derselben FIN zu einem Aufruf zusammenfassen, sonst doppelte API-Kosten (Trial-Kontingent ist klein). Außerdem entfällt dann die Annahme "Server-Aufrufe sequenziell" aus Spec 02 (Locking beim Speichern neu bewerten).
+- Hinweis für Spec 03: Doppelung auf der Karte. `Engine (full)` steht in der Zeile unter dem Titel, `Engine Power (kW)` in der Liste (Mock: "Elektro 150 kW" und "150 kW"). Nach Verprobung mit einer echten Antwort entscheiden, ob Zeile oder Liste gekürzt wird.
+- Nächster Schritt: Spec 03 (Vincario-Anbindung), Plan zuerst und vorher das Restguthaben nennen.
 
 ## Texte der Oberfläche (freigegeben)
 
@@ -22,5 +27,4 @@
 - Fehler Format: `Die Nummer muss genau 17 Zeichen haben und darf nur Buchstaben und Ziffern enthalten.`
 - Fehler I, O, Q: `Die Fahrgestellnummer darf keine Buchstaben I, O und Q enthalten. Bitte prüfe deine Eingabe.`
 - Technischer Fehler: `Daten momentan nicht verfügbar.`
-- Fahrgestellnummer ohne Daten (ab Spec 02): `Zu dieser Fahrgestellnummer haben wir keine Daten.`
-- Bis zur Umsetzung von Spec 02 gilt im Code noch: unbekannte Fahrgestellnummer zeigt keinen Text.
+- Fahrgestellnummer ohne Daten (seit Spec 02): `Zu dieser Fahrgestellnummer haben wir keine Daten.` (gleiche Optik wie die anderen Hinweise, aber `role="status"`, HTTP 200, nichts wird gespeichert)

@@ -166,7 +166,7 @@ test('Treffer: Felder sichtbar, ohne Herkunftshinweise; Schreibweise egal', asyn
   });
 });
 
-test('Unbekannte FIN: keine Meldung, keine Daten, Datei unverändert', async () => {
+test('Unbekannte FIN ohne Mock-Daten: kein alert, keine Karte, Datei unverändert', async () => {
   const file = tempFile(STORE);
   const before = fs.readFileSync(file);
   await withServer(file, async (port) => {
