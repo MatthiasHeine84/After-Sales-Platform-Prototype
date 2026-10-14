@@ -16,6 +16,8 @@ const HEADERS = {
   'Cache-Control': 'no-store',
   'Referrer-Policy': 'no-referrer',
   'X-Content-Type-Options': 'nosniff',
+  // Nichts laden außer dem eingebauten Stil; das Formular darf nur an die eigene Seite senden
+  'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'",
 };
 
 function send(res, status, body, extraHeaders = {}) {

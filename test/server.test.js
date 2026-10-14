@@ -70,13 +70,16 @@ test('Seite ohne Eingabe: Texte und Formular, keine Meldung', async () => {
     for (const text of [
       'MEIN FAHRZEUG',
       'Das steckt in deinem Auto',
-      'Gib deine Fahrgestellnummer ein und sieh, welches Auto du fährst.',
+      'Gib deine Fahrgestellnummer ein und sieh die technischen Daten deines Fahrzeugs.',
       'Fahrzeug anzeigen',
-      '17 Zeichen, steht im Fahrzeugschein',
     ]) {
       assert.ok(res.body.includes(text), text);
     }
     assert.ok(!res.body.includes('role="alert"'));
+    // Hinweis steht sichtbar im Text und ist mit dem Feld verbunden; das Feld hat keinen Platzhalter
+    assert.ok(res.body.includes('<p class="hint" id="fin-hint">17 Zeichen, siehe Zulassungsbescheinigung Feld E</p>'));
+    assert.ok(res.body.includes('aria-describedby="fin-hint"'));
+    assert.ok(!res.body.includes('placeholder'));
     assert.ok(res.body.includes('lang="de"'));
     assert.ok(res.body.includes('name="viewport"'));
     assert.ok(res.body.includes('<label for="fin">'));
@@ -92,6 +95,39 @@ test('Sicherheits-Header sind gesetzt', async () => {
     assert.strictEqual(headers['cache-control'], 'no-store');
     assert.strictEqual(headers['referrer-policy'], 'no-referrer');
     assert.strictEqual(headers['x-content-type-options'], 'nosniff');
+    assert.strictEqual(
+      headers['content-security-policy'],
+      "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'",
+    );
+  });
+});
+
+test('Seite lädt nichts nach: ein style, kein link, kein script, keine Adressen', async () => {
+  await withServer(tempFile(STORE), async (port) => {
+    for (const reqPath of ['/', query(FAKE_FIN), query('ABC')]) {
+      const { body } = await request(port, { reqPath });
+      assert.strictEqual(body.match(/<style>/g).length, 1, reqPath);
+      assert.ok(!/<link\b/i.test(body), reqPath);
+      assert.ok(!/<script\b/i.test(body), reqPath);
+      assert.ok(!/https?:\/\//i.test(body), reqPath);
+      assert.ok(body.includes('<meta name="color-scheme" content="dark">'), reqPath);
+      assert.ok(body.includes('color-scheme: dark'), reqPath);
+    }
+  });
+});
+
+test('Symbolkachel AUTO nur bei Treffer, für Screenreader versteckt', async () => {
+  await withServer(tempFile(STORE), async (port) => {
+    const hit = await request(port, { reqPath: query(FAKE_FIN) });
+    assert.ok(hit.body.includes('<div class="tile" aria-hidden="true">AUTO</div>'));
+
+    for (const reqPath of ['/', query(OTHER_FIN), query('ABC')]) {
+      const { body } = await request(port, { reqPath });
+      assert.ok(!body.includes('class="tile"'), reqPath);
+      assert.ok(!body.includes('class="card"'), reqPath);
+    }
+    const unknown = await request(port, { reqPath: query(OTHER_FIN) });
+    assert.ok(!unknown.body.includes('role="alert"'));
   });
 });
 

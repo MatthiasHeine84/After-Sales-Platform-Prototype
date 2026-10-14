@@ -7,14 +7,15 @@
 - Schritt 3 erledigt: `src/fin.js` (`validateFin`, Codes `empty`/`format`/`chars`), Tests in `test/`, `npm test` grün (7 Tests).
 - Schritt 4 erledigt: `src/cache.js` (`lookupFin`: found/unknown/error, nur lesend), Tests in `test/cache.test.js`, `npm test` grün (18 Tests).
 - Schritt 5 erledigt: `GET /?fin=` mit `src/page.js` (ungestaltet), Host-Prüfung, Sicherheits-Header, `npm test` grün (29 Tests).
-- Nächster Schritt: 6, Gestaltung nach Design-Regeln (`<style>` in `src/page.js`).
+- Schritt 6 erledigt: Gestaltung nach Design-Regeln als `<style>` in `src/page.js`, CSP-Header, Hinweistext statt Platzhalter, `npm test` grün (31 Tests).
+- Nächster Schritt: Spec 02 (Mock-Decoder, Feldauswahl): `/clear`, Interview, Spec schreiben.
 
 ## Texte der Oberfläche (freigegeben)
 
 - Beschriftung oben: `MEIN FAHRZEUG`
 - Überschrift: `Das steckt in deinem Auto`
-- Nutzensatz: `Gib deine Fahrgestellnummer ein und sieh, welches Auto du fährst.`
-- Label: `Fahrgestellnummer`, Platzhalter: `17 Zeichen, steht im Fahrzeugschein`
+- Nutzensatz: `Gib deine Fahrgestellnummer ein und sieh die technischen Daten deines Fahrzeugs.`
+- Label: `Fahrgestellnummer`, darunter sichtbarer Hinweistext (kein Platzhalter, per `aria-describedby` am Feld): `17 Zeichen, siehe Zulassungsbescheinigung Feld E`
 - Button: `Fahrzeug anzeigen`
 - Fehler leer: `Bitte gib die 17 Zeichen deiner Fahrgestellnummer ein.`
 - Fehler Format: `Die Nummer muss genau 17 Zeichen haben und darf nur Buchstaben und Ziffern enthalten.`
