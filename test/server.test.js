@@ -28,8 +28,8 @@ function tempFile(content) {
 }
 
 // Startet den Server mit eigener Speicherdatei, führt fn(port) aus und beendet den Server wieder
-async function withServer(cacheFile, fn) {
-  const server = createServer({ cacheFile });
+async function withServer(cacheFile, fn, options = {}) {
+  const server = createServer({ cacheFile, ...options });
   await new Promise((resolve) => server.listen(0, HOST, resolve));
   try {
     return await fn(server.address().port);
@@ -235,4 +235,201 @@ test('Andere Methoden: 405', async () => {
       assert.strictEqual(res.headers.allow, 'GET');
     }
   });
+});
+
+// ---- Spec 02: Decoder, Speichern, Hinweis ohne Daten ----
+
+const { decodeFin } = require('../src/decoder/mock');
+
+const MOCK_FIN = 'TESTMKA0000000001'; // erfunden, vom Mock-Decoder bekannt
+const MESSAGE_UNAVAILABLE = '<p class="notice" role="alert">Daten momentan nicht verfügbar.</p>';
+const MESSAGE_NODATA = '<p class="notice" role="status">Zu dieser Fahrgestellnummer haben wir keine Daten.</p>';
+
+// Decoder, der mitzählt, wie oft er gefragt wurde
+function countingDecoder(inner = decodeFin) {
+  const decoder = (fin) => {
+    decoder.calls += 1;
+    return inner(fin);
+  };
+  decoder.calls = 0;
+  return decoder;
+}
+
+// Meldung im Fehler-Absatz (nicht das Eingabefeld, das die Eingabe zurückspiegelt)
+const alertOf = (body) => (body.match(/<p class="notice" role="alert">.*?<\/p>/s) || [])[0];
+
+test('Unbekannte Mock-FIN: Karte, danach im Speicher, andere Einträge bleiben', async () => {
+  const file = tempFile(STORE);
+  await withServer(file, async (port) => {
+    const res = await request(port, { reqPath: query(MOCK_FIN) });
+    assert.strictEqual(res.status, 200);
+    assert.ok(res.body.includes('<h2>Testmarke Testmodell E</h2>'));
+    assert.ok(res.body.includes('<p class="subline">2022 · Elektro 150 kW</p>'));
+    assert.ok(res.body.includes('<div class="tile" aria-hidden="true">AUTO</div>'));
+    assert.ok(!res.body.includes('role="alert"'));
+    assert.ok(!res.body.includes('role="status"'));
+    // Weder Herkunft noch versteckte Felder noch das Logo erscheinen
+    for (const word of ['source', 'savedAt', 'mock', 'Mock', 'cache', 'vincario', 'example.invalid', 'TM-E-1', 'V-0001']) {
+      assert.ok(!res.body.includes(word), word);
+    }
+  });
+
+  const stored = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.deepStrictEqual(Object.keys(stored).sort(), [FAKE_FIN, MOCK_FIN].sort());
+  assert.deepStrictEqual(stored[FAKE_FIN], JSON.parse(STORE)[FAKE_FIN]);
+  assert.strictEqual(stored[MOCK_FIN].source, 'mock');
+  assert.deepStrictEqual(stored[MOCK_FIN].data, decodeFin(MOCK_FIN).data);
+});
+
+test('Zweiter Aufruf derselben FIN kommt aus dem Speicher, ohne Decoder-Aufruf', async () => {
+  const file = tempFile();
+  const decode = countingDecoder();
+  await withServer(file, async (port) => {
+    const first = await request(port, { reqPath: query(MOCK_FIN) });
+    assert.strictEqual(decode.calls, 1);
+    assert.ok(first.body.includes('<h2>Testmarke Testmodell E</h2>'));
+    const afterFirst = fs.readFileSync(file);
+
+    const second = await request(port, { reqPath: query(` ${MOCK_FIN.toLowerCase()} `) });
+    assert.strictEqual(decode.calls, 1);
+    assert.strictEqual(second.status, 200);
+    assert.ok(second.body.includes('<h2>Testmarke Testmodell E</h2>'));
+    assert.ok(afterFirst.equals(fs.readFileSync(file)));
+  }, { decode });
+});
+
+test('Decoder wird nur bei gültiger, im Speicher unbekannter FIN gefragt', async () => {
+  const decode = countingDecoder();
+  await withServer(tempFile(STORE), async (port) => {
+    for (const reqPath of ['/', query(''), query('ABC'), query(FAKE_FIN), query('<script>')]) {
+      await request(port, { reqPath });
+    }
+    assert.strictEqual(decode.calls, 0);
+    await request(port, { reqPath: query(OTHER_FIN) });
+    assert.strictEqual(decode.calls, 1);
+  }, { decode });
+});
+
+test('FIN ohne Daten: Hinweis mit role="status", Status 200, nichts gespeichert', async () => {
+  // Fall 1: Datei existiert nicht und wird nicht angelegt. Fall 2: Datei mit Inhalt bleibt byte-gleich.
+  const missing = tempFile();
+  const existing = tempFile(STORE);
+  const before = fs.readFileSync(existing);
+
+  for (const file of [missing, existing]) {
+    await withServer(file, async (port) => {
+      const res = await request(port, { reqPath: query(OTHER_FIN) });
+      assert.strictEqual(res.status, 200);
+      assert.ok(res.body.includes(MESSAGE_NODATA));
+      assert.ok(!res.body.includes('role="alert"'));
+      assert.ok(!res.body.includes('class="card"'));
+      assert.ok(!res.body.includes('class="tile"'));
+      for (const word of ['source', 'mock', 'Mock', 'cache', 'vincario']) assert.ok(!res.body.includes(word), word);
+    });
+  }
+  assert.ok(!fs.existsSync(missing));
+  assert.ok(before.equals(fs.readFileSync(existing)));
+});
+
+test('Beschädigte Speicherdatei: 500, Decoder wird nicht gefragt, Datei byte-gleich', async () => {
+  const file = tempFile('{ kaputt');
+  const before = fs.readFileSync(file);
+  const decode = countingDecoder();
+  await withServer(file, async (port) => {
+    const res = await request(port, { reqPath: query(MOCK_FIN) });
+    assert.strictEqual(res.status, 500);
+    assert.strictEqual(alertOf(res.body), MESSAGE_UNAVAILABLE);
+  }, { decode });
+  assert.strictEqual(decode.calls, 0);
+  assert.ok(before.equals(fs.readFileSync(file)));
+});
+
+test('Decoder wirft: 500 mit neutraler Meldung, nichts geschrieben, nichts protokolliert, keine FIN im Fehler', async (t) => {
+  const file = tempFile();
+  const decode = () => {
+    throw new Error(`Geheimer Fehler für ${MOCK_FIN} mit Schlüssel apikey=GEHEIM`);
+  };
+  const logged = ['log', 'info', 'warn', 'error', 'debug'].map((name) => t.mock.method(console, name, () => {}));
+
+  await withServer(file, async (port) => {
+    const res = await request(port, { reqPath: query(MOCK_FIN) });
+    assert.strictEqual(res.status, 500);
+    assert.strictEqual(alertOf(res.body), MESSAGE_UNAVAILABLE);
+    assert.ok(!res.body.includes('Geheimer Fehler'));
+    assert.ok(!res.body.includes('GEHEIM'));
+    assert.ok(!res.body.includes('class="card"'));
+  }, { decode });
+
+  for (const spy of logged) assert.strictEqual(spy.mock.callCount(), 0);
+  assert.ok(!fs.existsSync(file));
+});
+
+test('Decoder liefert unerwartete Form oder error: 500, nichts geschrieben', async () => {
+  const good = decodeFin(MOCK_FIN).data;
+  const shapes = [
+    undefined, null, 'text', 42, [], {},
+    { status: 'error' },
+    { status: 'irgendwas', data: good },
+    { status: 'found' },
+    { status: 'found', data: null },
+    { status: 'found', data: {} },
+    { status: 'found', data: [] },
+    { status: 'found', data: { decode: 'text' } },
+    { status: 'found', data: { decode: {} } },
+    Promise.resolve({ status: 'found', data: good }),
+  ];
+  for (const shape of shapes) {
+    const file = tempFile();
+    await withServer(file, async (port) => {
+      const res = await request(port, { reqPath: query(MOCK_FIN) });
+      assert.strictEqual(res.status, 500, String(shape));
+      assert.strictEqual(alertOf(res.body), MESSAGE_UNAVAILABLE, String(shape));
+      assert.ok(!res.body.includes('class="card"'), String(shape));
+    }, { decode: () => shape });
+    assert.ok(!fs.existsSync(file), String(shape));
+  }
+});
+
+test('Schreibfehler beim Speichern: 500 mit neutraler Meldung, Datei unverändert, keine Karte', async (t) => {
+  const file = tempFile(STORE);
+  const before = fs.readFileSync(file);
+  t.mock.method(fs, 'writeFileSync', () => {
+    throw new Error('Simulierter Schreibfehler');
+  });
+
+  await withServer(file, async (port) => {
+    const res = await request(port, { reqPath: query(MOCK_FIN) });
+    assert.strictEqual(res.status, 500);
+    assert.strictEqual(alertOf(res.body), MESSAGE_UNAVAILABLE);
+    assert.ok(!res.body.includes('class="card"'));
+  });
+  t.mock.restoreAll();
+
+  assert.ok(before.equals(fs.readFileSync(file)));
+  assert.deepStrictEqual(fs.readdirSync(path.dirname(file)).filter((name) => name.endsWith('.tmp')), []);
+});
+
+test('FIN taucht während der Abfrage im Speicher auf: vorhandener Eintrag gilt, nichts überschrieben', async () => {
+  const file = tempFile();
+  const existing = { savedAt: '2026-01-01', source: 'mock', data: { decode: [{ label: 'Make', value: 'SchonDa' }] } };
+  const decode = (fin) => {
+    fs.writeFileSync(file, JSON.stringify({ [fin]: existing }));
+    return decodeFin(fin);
+  };
+  await withServer(file, async (port) => {
+    const res = await request(port, { reqPath: query(MOCK_FIN) });
+    assert.strictEqual(res.status, 200);
+    assert.ok(res.body.includes('<h2>SchonDa</h2>'));
+    assert.ok(!res.body.includes('Testmodell E'));
+  }, { decode });
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(file, 'utf8')), { [MOCK_FIN]: existing });
+});
+
+test('Daten mit HTML werden auch bei neuem Eintrag escaped', async () => {
+  const decode = () => ({ status: 'found', data: { decode: [{ label: 'Make', value: '<script>alert(1)</script>' }] } });
+  await withServer(tempFile(), async (port) => {
+    const res = await request(port, { reqPath: query(MOCK_FIN) });
+    assert.ok(!res.body.includes('<script>'));
+    assert.ok(res.body.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
+  }, { decode });
 });

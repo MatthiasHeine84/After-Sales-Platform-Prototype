@@ -3,8 +3,9 @@
 // Bewusst keine Request-Logs und keine FIN in Logs oder Fehlern.
 const http = require('node:http');
 const path = require('node:path');
-const { validateFin } = require('./src/fin');
-const { lookupFin } = require('./src/cache');
+const { validateFin, MESSAGES } = require('./src/fin');
+const { lookupFin, saveFin } = require('./src/cache');
+const { decodeFin } = require('./src/decoder/mock');
 const { renderPage } = require('./src/page');
 
 const HOST = '127.0.0.1';
@@ -31,7 +32,39 @@ function hostAllowed(req) {
   return req.headers.host === `127.0.0.1:${port}` || req.headers.host === `localhost:${port}`;
 }
 
-function createServer({ cacheFile = DEFAULT_CACHE_FILE } = {}) {
+// Nur ein Datensatz in der erwarteten Form darf gespeichert und angezeigt werden
+function isUsableResult(result) {
+  return (
+    typeof result === 'object' && result !== null && result.status === 'found' &&
+    typeof result.data === 'object' && result.data !== null && Array.isArray(result.data.decode)
+  );
+}
+
+// Unbekannte FIN: Decoder fragen, speichern, anzeigen. Gibt { status, body } zurück.
+// Ein Fehler des Decoders (auch ein Wurf) wird bewusst nicht protokolliert: Meldungen könnten die FIN enthalten.
+function decodeAndStore(fin, input, cacheFile, decode) {
+  const failed = { status: 500, body: renderPage({ input, error: MESSAGES.unavailable }) };
+
+  let result;
+  try {
+    result = decode(fin);
+  } catch {
+    return failed;
+  }
+
+  if (typeof result === 'object' && result !== null && result.status === 'nodata') {
+    return { status: 200, body: renderPage({ input, notice: MESSAGES.nodata }) };
+  }
+  if (!isUsableResult(result)) return failed;
+
+  const saved = saveFin(fin, result.data, 'mock', cacheFile);
+  // 'found': die FIN war inzwischen schon gespeichert, dann gilt der vorhandene Eintrag
+  if (saved.status === 'saved') return { status: 200, body: renderPage({ input, data: result.data }) };
+  if (saved.status === 'found') return { status: 200, body: renderPage({ input, data: saved.data }) };
+  return failed;
+}
+
+function createServer({ cacheFile = DEFAULT_CACHE_FILE, decode = decodeFin } = {}) {
   return http.createServer((req, res) => {
     if (!hostAllowed(req)) return send(res, 403, 'Nicht erlaubt');
 
@@ -49,7 +82,9 @@ function createServer({ cacheFile = DEFAULT_CACHE_FILE } = {}) {
     const found = lookupFin(checked.fin, cacheFile);
     if (found.status === 'error') return send(res, 500, renderPage({ input, error: found.message }));
     if (found.status === 'found') return send(res, 200, renderPage({ input, data: found.data }));
-    return send(res, 200, renderPage({ input }));
+
+    const decoded = decodeAndStore(checked.fin, input, cacheFile, decode);
+    return send(res, decoded.status, decoded.body);
   });
 }
 
