@@ -4,7 +4,7 @@
 const MESSAGES = {
   empty: 'Bitte gib die 17 Zeichen deiner Fahrgestellnummer ein.',
   format: 'Die Nummer muss genau 17 Zeichen haben und darf nur Buchstaben und Ziffern enthalten.',
-  chars: 'In dieser Nummer kommen die Buchstaben I, O und Q nicht vor. Bitte prüfe deine Eingabe.',
+  chars: 'Die Fahrgestellnummer darf keine Buchstaben I, O und Q enthalten. Bitte prüfe deine Eingabe.',
   unavailable: 'Daten momentan nicht verfügbar.',
 };
 

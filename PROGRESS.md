@@ -19,6 +19,6 @@
 - Button: `Fahrzeug anzeigen`
 - Fehler leer: `Bitte gib die 17 Zeichen deiner Fahrgestellnummer ein.`
 - Fehler Format: `Die Nummer muss genau 17 Zeichen haben und darf nur Buchstaben und Ziffern enthalten.`
-- Fehler I, O, Q: `In dieser Nummer kommen die Buchstaben I, O und Q nicht vor. Bitte prüfe deine Eingabe.`
+- Fehler I, O, Q: `Die Fahrgestellnummer darf keine Buchstaben I, O und Q enthalten. Bitte prüfe deine Eingabe.`
 - Technischer Fehler: `Daten momentan nicht verfügbar.`
 - Unbekannte Fahrgestellnummer: kein Text.

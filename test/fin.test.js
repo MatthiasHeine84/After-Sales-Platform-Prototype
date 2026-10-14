@@ -47,3 +47,11 @@ test('Fehler enthalten die freigegebene Meldung', () => {
   const result = validateFin('');
   assert.strictEqual(result.message, 'Bitte gib die 17 Zeichen deiner Fahrgestellnummer ein.');
 });
+
+test('I, O und Q: freigegebene Meldung im Wortlaut', () => {
+  const result = validateFin('I' + FAKE_FIN.slice(1));
+  assert.strictEqual(
+    result.message,
+    'Die Fahrgestellnummer darf keine Buchstaben I, O und Q enthalten. Bitte prüfe deine Eingabe.',
+  );
+});
