@@ -15,28 +15,36 @@ function unavailable() {
   return { status: 'error', code: 'unavailable', message: MESSAGES.unavailable };
 }
 
-// Ergebnis: { status: 'found', data } | { status: 'unknown' } | { status: 'error', code, message }
-// 'unknown' nur, wenn die Datei fehlt, leer ist oder die FIN nicht vorkommt.
-function lookupFin(fin, filePath = DEFAULT_FILE) {
+// Liest die Speicherdatei. Ergebnis: { store } | { error } (error = fertiges Fehlerergebnis).
+// Fehlende, leere oder nur aus Leerraum bestehende Datei zählt als leerer Speicher.
+function readStore(filePath) {
   let text;
   try {
     const buffer = fs.readFileSync(filePath);
     // fatal: ungültiges UTF-8 wirft einen Fehler; ein BOM am Anfang wird dabei entfernt
     text = new TextDecoder('utf-8', { fatal: true }).decode(buffer);
   } catch (err) {
-    if (err && err.code === 'ENOENT') return { status: 'unknown' };
-    return unavailable();
+    if (err && err.code === 'ENOENT') return { store: {} };
+    return { error: unavailable() };
   }
 
-  if (text.trim() === '') return { status: 'unknown' };
+  if (text.trim() === '') return { store: {} };
 
   let store;
   try {
     store = JSON.parse(text);
   } catch {
-    return unavailable();
+    return { error: unavailable() };
   }
-  if (!isPlainObject(store)) return unavailable();
+  if (!isPlainObject(store)) return { error: unavailable() };
+  return { store };
+}
+
+// Ergebnis: { status: 'found', data } | { status: 'unknown' } | { status: 'error', code, message }
+// 'unknown' nur, wenn die Datei fehlt, leer ist oder die FIN nicht vorkommt.
+function lookupFin(fin, filePath = DEFAULT_FILE) {
+  const { store, error } = readStore(filePath);
+  if (error) return error;
 
   // hasOwn statt store[fin]: "constructor" oder "__proto__" sollen nie treffen
   if (!Object.hasOwn(store, fin)) return { status: 'unknown' };
