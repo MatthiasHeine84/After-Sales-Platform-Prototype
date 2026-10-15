@@ -98,7 +98,8 @@ module.exports = { createServer, HOST, PORT };
 if (require.main === module) {
   // Keys nur hier lesen (nie beim Import). Fehlt .env, bleiben sie leer, der Decoder antwortet dann mit 'error'.
   try {
-    process.loadEnvFile();
+    // Pfad relativ zum Projektordner, nicht zum aktuellen Arbeitsordner
+    process.loadEnvFile(path.join(__dirname, '.env'));
   } catch {
     // keine .env vorhanden
   }
