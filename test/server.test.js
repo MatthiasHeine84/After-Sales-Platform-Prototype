@@ -263,13 +263,13 @@ test('Unbekannte Mock-FIN: Karte, danach im Speicher, andere Einträge bleiben',
   await withServer(file, async (port) => {
     const res = await request(port, { reqPath: query(MOCK_FIN) });
     assert.strictEqual(res.status, 200);
-    assert.ok(res.body.includes('<h2>Testmarke Testmodell E</h2>'));
+    assert.ok(res.body.includes('<h2>Testmarke Testmodell E, Testmodell F</h2>'));
     assert.ok(res.body.includes('<p class="subline">2022</p>'));
     assert.ok(res.body.includes('<div class="tile" aria-hidden="true">AUTO</div>'));
     assert.ok(!res.body.includes('role="alert"'));
     assert.ok(!res.body.includes('role="status"'));
     // Weder Herkunft noch versteckte Felder noch das Logo erscheinen
-    for (const word of ['source', 'savedAt', 'mock', 'Mock', 'cache', 'vincario', 'example.invalid', 'Elektro', 'Mondgrau', '<dl>']) {
+    for (const word of ['source', 'savedAt', 'mock', 'Mock', 'cache', 'vincario', 'example.invalid', 'Testkraftstoff', 'Testgetriebe', '<dl>']) {
       assert.ok(!res.body.includes(word), word);
     }
   });
@@ -287,13 +287,13 @@ test('Zweiter Aufruf derselben FIN kommt aus dem Speicher, ohne Decoder-Aufruf',
   await withServer(file, async (port) => {
     const first = await request(port, { reqPath: query(MOCK_FIN) });
     assert.strictEqual(decode.calls, 1);
-    assert.ok(first.body.includes('<h2>Testmarke Testmodell E</h2>'));
+    assert.ok(first.body.includes('<h2>Testmarke Testmodell E, Testmodell F</h2>'));
     const afterFirst = fs.readFileSync(file);
 
     const second = await request(port, { reqPath: query(` ${MOCK_FIN.toLowerCase()} `) });
     assert.strictEqual(decode.calls, 1);
     assert.strictEqual(second.status, 200);
-    assert.ok(second.body.includes('<h2>Testmarke Testmodell E</h2>'));
+    assert.ok(second.body.includes('<h2>Testmarke Testmodell E, Testmodell F</h2>'));
     assert.ok(afterFirst.equals(fs.readFileSync(file)));
   }, { decode });
 });

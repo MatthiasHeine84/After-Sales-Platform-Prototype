@@ -17,11 +17,16 @@ test('Alle Felder: Titel Make + Model, darunter Model Year, Kachel AUTO, keine L
   assert.ok(!html.includes('<dl>'));
 });
 
-test('Mock-Datensatz: Titel und Jahr, sonst nichts aus dem Datensatz', () => {
-  const html = card(FULL);
-  assert.ok(html.includes('<h2>Testmarke Testmodell E</h2>'));
-  assert.ok(html.includes('<p class="subline">2022</p>'));
-  assert.ok(html.includes('class="tile"'));
+test('Mock-Datensätze 01 (41 Labels) und 02 (30 Labels) samt Listenwerten: kein Absturz, nur Titel und Jahr-Zeile', () => {
+  const cardOf = (fin) => card(decodeFin(fin).data).match(/<section class="card">.*?<\/section>/s)[0];
+  const expected = (title, year) =>
+    `<section class="card">\n<div class="tile" aria-hidden="true">AUTO</div>\n<div class="info">\n` +
+    `<h2>${title}</h2>\n<p class="subline">${year}</p>\n</div>\n</section>`;
+  assert.strictEqual(decodeFin('TESTMKA0000000001').data.decode.length, 41);
+  assert.strictEqual(decodeFin('TESTMKA0000000002').data.decode.length, 30);
+  assert.strictEqual(cardOf('TESTMKA0000000001'), expected('Testmarke Testmodell E, Testmodell F', 2022));
+  assert.strictEqual(cardOf('TESTMKA0000000002'), expected('Testmarke Testmodell K', 2019));
+  assert.strictEqual(cardOf('TESTMKA0000000003'), expected('Testmarke Testmodell X', 2015));
 });
 
 test('Titel: nur Make, nur Model, beides fehlt', () => {
@@ -71,7 +76,9 @@ test('Nicht angezeigt: Trim, Body, Fuel Type, Transmission, Maße, Make Logo, ID
   assert.ok(!html.includes('<dl>'));
   // auch beim Mock-Datensatz
   const full = card(FULL);
-  for (const hidden of ['logo', 'example.invalid', '<dl>', '<img', 'Elektro', 'Mondgrau']) assert.ok(!full.includes(hidden), hidden);
+  for (const hidden of ['logo', 'example.invalid', '<dl>', '<img', 'TESTAUSSTATTUNG', 'Testaufbau', 'Testkraftstoff', 'Testgetriebe', '3001']) {
+    assert.ok(!full.includes(hidden), hidden);
+  }
 });
 
 test('Robust: data ohne decode-Array oder in falscher Form ergibt eine Karte mit Titel-Fallback', () => {
