@@ -99,17 +99,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 }
 .info { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 h2 { margin: 0 0 4px; font-size: 1.5rem; line-height: 1.2; font-weight: 800; }
-.subline { margin: 0 0 16px; color: var(--text-muted); }
-dl {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(110px, max-content) 1fr;
-  gap: 8px 24px;
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-dt { color: var(--text-field); }
-dd { margin: 0; font-weight: 600; }
+.subline { margin: 0; color: var(--text-muted); }
 @media (max-width: 560px) {
   main { padding-top: 32px; }
   .row { flex-direction: column; }
@@ -147,40 +137,18 @@ function readFields(data) {
   return fields;
 }
 
-// Nur diese Felder werden angezeigt (Spec 02). Nicht angezeigt: Make Logo, Model ID, Transmission ID, Vehicle ID, Color ID.
-// Jede Zeile: deutsche Beschriftung und die Quell-Labels in Reihenfolge der Bevorzugung (erstes vorhandenes zählt).
-const LIST_ROWS = [
-  { title: 'Getriebe', labels: ['Transmission (full)', 'Transmission'] },
-  { title: 'Motorleistung', labels: ['Engine Power (kW)'], suffix: ' kW' },
-  { title: 'Motorcode', labels: ['Engine Code'] },
-  { title: 'Motormodell', labels: ['Engine Model'] },
-  { title: 'Farbe', labels: ['Color'] },
-  { title: 'Ausstattung', labels: ['Vehicle Specification'] },
-];
-
-function firstOf(fields, labels) {
-  for (const label of labels) {
-    const value = fields.get(label);
-    if (value !== undefined) return value;
-  }
-  return undefined;
-}
-
+// Angezeigt werden nur Make, Model (Titel) und Model Year (Zeile darunter), siehe Spec 02.
+// Alle anderen Felder (Trim, Body, Maße, Make Logo, IDs usw.) bleiben im Speicher, erscheinen aber nicht.
 function renderCard(data) {
   const fields = readFields(data);
   const title = [fields.get('Make'), fields.get('Model')].filter(Boolean).join(' ') || 'Dein Fahrzeug';
-  const subtitle = [fields.get('Model Year'), fields.get('Engine (full)')].filter(Boolean).join(' · ');
-
-  const rows = LIST_ROWS.map(({ title: name, labels, suffix = '' }) => {
-    const value = firstOf(fields, labels);
-    return value === undefined ? '' : `<dt>${escapeHtml(name)}</dt><dd>${escapeHtml(value + suffix)}</dd>`;
-  }).join('');
+  const year = fields.get('Model Year');
 
   return `<section class="card">
 <div class="tile" aria-hidden="true">AUTO</div>
 <div class="info">
 <h2>${escapeHtml(title)}</h2>
-${subtitle ? `<p class="subline">${escapeHtml(subtitle)}</p>` : ''}${rows ? `<dl>${rows}</dl>` : ''}
+${year ? `<p class="subline">${escapeHtml(year)}</p>` : ''}
 </div>
 </section>`;
 }
