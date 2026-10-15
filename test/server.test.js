@@ -7,6 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { createServer, HOST } = require('../server');
 const { MESSAGES } = require('../src/fin');
+const { decodeFin: mockDecodeFin } = require('./helpers/mock-decoder');
 
 const FAKE_FIN = 'ABCDEFGH123456789'; // erfunden
 const OTHER_FIN = 'ZZZZZZZZ987654321'; // erfunden
@@ -28,8 +29,9 @@ function tempFile(content) {
 }
 
 // Startet den Server mit eigener Speicherdatei, führt fn(port) aus und beendet den Server wieder
+// Standard-Decoder im Test ist der Mock; options.decode überschreibt ihn
 async function withServer(cacheFile, fn, options = {}) {
-  const server = createServer({ cacheFile, ...options });
+  const server = createServer({ cacheFile, decode: mockDecodeFin, ...options });
   await new Promise((resolve) => server.listen(0, HOST, resolve));
   try {
     return await fn(server.address().port);
@@ -239,7 +241,7 @@ test('Andere Methoden: 405', async () => {
 
 // ---- Spec 02: Decoder, Speichern, Hinweis ohne Daten ----
 
-const { decodeFin } = require('../src/decoder/mock');
+const { decodeFin } = require('./helpers/mock-decoder');
 
 const MOCK_FIN = 'TESTMKA0000000001'; // erfunden, vom Mock-Decoder bekannt
 const MESSAGE_UNAVAILABLE = '<p class="notice" role="alert">Daten momentan nicht verfügbar.</p>';
@@ -489,4 +491,99 @@ test('Daten mit HTML werden auch bei neuem Eintrag escaped', async () => {
     assert.ok(!res.body.includes('<script>'));
     assert.ok(res.body.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
   }, { decode });
+});
+
+// ---- Spec 03b: echter Vincario-Decoder mit Fake-fetch (kein Netzwerk) ----
+
+const { createVincarioDecoder } = require('../src/decoder/vincario');
+
+const FAKE_API_KEY = 'fake-api-key-for-tests'; // erfunden
+const FAKE_SECRET_KEY = 'fake-secret-key-for-tests'; // erfunden
+const VINCARIO_FIN = 'TESTMKB0000000001'; // erfunden
+
+// Fake-fetch: zählt Aufrufe und antwortet mit dem übergebenen Body (Vincario meldet Fehler mit HTTP 200)
+function fakeFetch(body) {
+  const fn = async () => {
+    fn.calls += 1;
+    return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+  };
+  fn.calls = 0;
+  return fn;
+}
+
+const vincarioDecoder = (fetchFn) => createVincarioDecoder({ fetchFn, apiKey: FAKE_API_KEY, secretKey: FAKE_SECRET_KEY });
+
+test('Vincario-Treffer: Karte, gespeichert mit source "vincario", ein fetch', async () => {
+  const fetchFn = fakeFetch({
+    price: 0,
+    balance: { 'API VIN Decode': 5 },
+    decode: [{ label: 'Make', value: 'Testmarke' }, { label: 'Model', value: 'Testmodell V' }, { label: 'Model Year', value: 2021 }],
+  });
+  const file = tempFile();
+  await withServer(file, async (port) => {
+    const res = await request(port, { reqPath: query(VINCARIO_FIN) });
+    assert.strictEqual(res.status, 200);
+    assert.ok(res.body.includes('<h2>Testmarke Testmodell V</h2>'));
+    assert.ok(res.body.includes('<p class="subline">2021</p>'));
+    assert.ok(!res.body.includes('vincario'));
+    assert.ok(!res.body.includes('balance'));
+    assert.ok(!res.body.includes(FAKE_API_KEY) && !res.body.includes(FAKE_SECRET_KEY));
+  }, { decode: vincarioDecoder(fetchFn) });
+
+  assert.strictEqual(fetchFn.calls, 1);
+  const stored = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.deepStrictEqual(Object.keys(stored), [VINCARIO_FIN]);
+  assert.strictEqual(stored[VINCARIO_FIN].source, 'vincario');
+  // price und balance werden nicht gespeichert
+  assert.deepStrictEqual(Object.keys(stored[VINCARIO_FIN].data), ['decode']);
+});
+
+test('Vincario "Not recognized": Hinweis ohne Daten, nichts gespeichert', async () => {
+  const fetchFn = fakeFetch({ error: 'x', message: 'Not recognized' });
+  const file = tempFile();
+  await withServer(file, async (port) => {
+    const res = await request(port, { reqPath: query(VINCARIO_FIN) });
+    assert.strictEqual(res.status, 200);
+    assert.ok(res.body.includes(MESSAGE_NODATA));
+  }, { decode: vincarioDecoder(fetchFn) });
+  assert.strictEqual(fetchFn.calls, 1);
+  assert.ok(!fs.existsSync(file));
+});
+
+test('Vincario andere Fehlerform: 500 mit neutraler Meldung, nichts gespeichert', async () => {
+  const fetchFn = fakeFetch({ error: 'x', message: 'Etwas anderes' });
+  const file = tempFile();
+  await withServer(file, async (port) => {
+    const res = await request(port, { reqPath: query(VINCARIO_FIN) });
+    assert.strictEqual(res.status, 500);
+    assert.strictEqual(alertOf(res.body), MESSAGE_UNAVAILABLE);
+    assert.ok(!res.body.includes('Etwas anderes'));
+  }, { decode: vincarioDecoder(fetchFn) });
+  assert.ok(!fs.existsSync(file));
+});
+
+test('Standard ohne Decoder: ruft nie fetch auf, 500, nichts gespeichert', async () => {
+  const realFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    throw new Error('Netzwerkzugriff im Test');
+  };
+  try {
+    const file = tempFile();
+    // Direkt createServer ohne decode, nicht über withServer (das den Mock einsetzt)
+    const server = createServer({ cacheFile: file });
+    await new Promise((resolve) => server.listen(0, HOST, resolve));
+    try {
+      const res = await request(server.address().port, { reqPath: query(VINCARIO_FIN) });
+      assert.strictEqual(res.status, 500);
+      assert.strictEqual(alertOf(res.body), MESSAGE_UNAVAILABLE);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+    assert.strictEqual(calls, 0);
+    assert.ok(!fs.existsSync(file));
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });

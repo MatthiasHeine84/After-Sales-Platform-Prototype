@@ -5,7 +5,7 @@ const http = require('node:http');
 const path = require('node:path');
 const { validateFin, MESSAGES } = require('./src/fin');
 const { lookupFin, saveFin } = require('./src/cache');
-const { decodeFin } = require('./src/decoder/mock');
+const { createVincarioDecoder } = require('./src/decoder/vincario');
 const { renderPage } = require('./src/page');
 
 const HOST = '127.0.0.1';
@@ -66,7 +66,9 @@ async function decodeAndStore(fin, input, cacheFile, decode) {
   return failed;
 }
 
-function createServer({ cacheFile = DEFAULT_CACHE_FILE, decode = decodeFin } = {}) {
+// Ohne übergebenen Decoder: Vincario ohne Keys. Der liefert immer 'error' und ruft nie fetch auf,
+// so können Tests die echte API nicht treffen.
+function createServer({ cacheFile = DEFAULT_CACHE_FILE, decode = createVincarioDecoder({}) } = {}) {
   return http.createServer(async (req, res) => {
     if (!hostAllowed(req)) return send(res, 403, 'Nicht erlaubt');
 
@@ -94,7 +96,20 @@ module.exports = { createServer, HOST, PORT };
 
 // Nur starten, wenn die Datei direkt aufgerufen wird (nicht beim Import im Test)
 if (require.main === module) {
-  createServer().listen(PORT, HOST, () => {
+  // Keys nur hier lesen (nie beim Import). Fehlt .env, bleiben sie leer, der Decoder antwortet dann mit 'error'.
+  try {
+    process.loadEnvFile();
+  } catch {
+    // keine .env vorhanden
+  }
+  const apiKey = process.env.VINCARIO_API_KEY;
+  const secretKey = process.env.VINCARIO_SECRET_KEY;
+  const configured = Boolean(apiKey && secretKey);
+  const decode = createVincarioDecoder({ apiKey, secretKey });
+
+  createServer({ decode }).listen(PORT, HOST, () => {
     console.log(`Server läuft auf Port ${PORT}`);
+    // Nur der Zustand, nie Werte
+    console.log(`Vincario: ${configured ? 'konfiguriert' : 'nicht konfiguriert'}`);
   });
 }

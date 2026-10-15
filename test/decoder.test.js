@@ -2,7 +2,7 @@
 // Die erwarteten Labellisten stehen fest hier im Test (nicht aus data/ gelesen): data/ ist nicht im Repo.
 const test = require('node:test');
 const assert = require('node:assert');
-const { decodeFin } = require('../src/decoder/mock');
+const { decodeFin } = require('./helpers/mock-decoder');
 const { validateFin } = require('../src/fin');
 
 const MOCK_FINS = ['TESTMKA0000000001', 'TESTMKA0000000002', 'TESTMKA0000000003'];

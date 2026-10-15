@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { renderPage } = require('../src/page');
-const { decodeFin } = require('../src/decoder/mock');
+const { decodeFin } = require('./helpers/mock-decoder');
 const { MESSAGES } = require('../src/fin');
 
 const decode = (...items) => ({ decode: items.map(([label, value]) => ({ label, value })) });
