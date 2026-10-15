@@ -88,7 +88,7 @@ const MOCK_DATA = {
   ],
 };
 
-// Ergebnis: { status: 'found', data } | { status: 'nodata' } | { status: 'error' }
+// Ergebnis: { status: 'found', source: 'mock', data } | { status: 'nodata' } | { status: 'error' }
 function decodeFin(fin) {
   // hasOwn statt MOCK_DATA[fin]: "constructor" oder "__proto__" sollen nie treffen
   if (typeof fin !== 'string' || !Object.hasOwn(MOCK_DATA, fin)) return { status: 'nodata' };
@@ -96,6 +96,7 @@ function decodeFin(fin) {
   // Kopie, damit niemand die festen Mock-Daten versehentlich ändert (Listenwerte werden mitkopiert)
   return {
     status: 'found',
+    source: 'mock',
     data: {
       decode: MOCK_DATA[fin].map((item) => ({
         ...item,

@@ -32,22 +32,24 @@ function hostAllowed(req) {
   return req.headers.host === `127.0.0.1:${port}` || req.headers.host === `localhost:${port}`;
 }
 
-// Nur ein Datensatz in der erwarteten Form darf gespeichert und angezeigt werden
+// Nur ein Datensatz in der erwarteten Form darf gespeichert und angezeigt werden (mit Quelle, z. B. "vincario")
 function isUsableResult(result) {
   return (
     typeof result === 'object' && result !== null && result.status === 'found' &&
+    typeof result.source === 'string' && result.source !== '' &&
     typeof result.data === 'object' && result.data !== null && Array.isArray(result.data.decode)
   );
 }
 
-// Unbekannte FIN: Decoder fragen, speichern, anzeigen. Gibt { status, body } zurück.
-// Ein Fehler des Decoders (auch ein Wurf) wird bewusst nicht protokolliert: Meldungen könnten die FIN enthalten.
-function decodeAndStore(fin, input, cacheFile, decode) {
+// Unbekannte FIN: Decoder fragen (async, mit await), speichern, anzeigen. Gibt { status, body } zurück.
+// Ein Fehler des Decoders (auch ein Wurf oder ein abgelehntes Promise) wird bewusst nicht protokolliert:
+// Meldungen könnten die FIN enthalten.
+async function decodeAndStore(fin, input, cacheFile, decode) {
   const failed = { status: 500, body: renderPage({ input, error: MESSAGES.unavailable }) };
 
   let result;
   try {
-    result = decode(fin);
+    result = await decode(fin);
   } catch {
     return failed;
   }
@@ -57,7 +59,7 @@ function decodeAndStore(fin, input, cacheFile, decode) {
   }
   if (!isUsableResult(result)) return failed;
 
-  const saved = saveFin(fin, result.data, 'mock', cacheFile);
+  const saved = saveFin(fin, result.data, result.source, cacheFile);
   // 'found': die FIN war inzwischen schon gespeichert, dann gilt der vorhandene Eintrag
   if (saved.status === 'saved') return { status: 200, body: renderPage({ input, data: result.data }) };
   if (saved.status === 'found') return { status: 200, body: renderPage({ input, data: saved.data }) };
@@ -65,7 +67,7 @@ function decodeAndStore(fin, input, cacheFile, decode) {
 }
 
 function createServer({ cacheFile = DEFAULT_CACHE_FILE, decode = decodeFin } = {}) {
-  return http.createServer((req, res) => {
+  return http.createServer(async (req, res) => {
     if (!hostAllowed(req)) return send(res, 403, 'Nicht erlaubt');
 
     const url = new URL(req.url, 'http://localhost');
@@ -83,7 +85,7 @@ function createServer({ cacheFile = DEFAULT_CACHE_FILE, decode = decodeFin } = {
     if (found.status === 'error') return send(res, 500, renderPage({ input, error: found.message }));
     if (found.status === 'found') return send(res, 200, renderPage({ input, data: found.data }));
 
-    const decoded = decodeAndStore(checked.fin, input, cacheFile, decode);
+    const decoded = await decodeAndStore(checked.fin, input, cacheFile, decode);
     return send(res, decoded.status, decoded.body);
   });
 }

@@ -369,14 +369,18 @@ test('Decoder liefert unerwartete Form oder error: 500, nichts geschrieben', asy
   const shapes = [
     undefined, null, 'text', 42, [], {},
     { status: 'error' },
-    { status: 'irgendwas', data: good },
-    { status: 'found' },
-    { status: 'found', data: null },
-    { status: 'found', data: {} },
-    { status: 'found', data: [] },
-    { status: 'found', data: { decode: 'text' } },
-    { status: 'found', data: { decode: {} } },
-    Promise.resolve({ status: 'found', data: good }),
+    { status: 'irgendwas', source: 'mock', data: good },
+    { status: 'found', source: 'mock' },
+    { status: 'found', source: 'mock', data: null },
+    { status: 'found', source: 'mock', data: {} },
+    { status: 'found', source: 'mock', data: [] },
+    { status: 'found', source: 'mock', data: { decode: 'text' } },
+    { status: 'found', source: 'mock', data: { decode: {} } },
+    // ohne brauchbare Quelle
+    { status: 'found', data: good },
+    { status: 'found', source: '', data: good },
+    { status: 'found', source: 5, data: good },
+    { status: 'found', source: null, data: good },
   ];
   for (const shape of shapes) {
     const file = tempFile();
@@ -388,6 +392,59 @@ test('Decoder liefert unerwartete Form oder error: 500, nichts geschrieben', asy
     }, { decode: () => shape });
     assert.ok(!fs.existsSync(file), String(shape));
   }
+});
+
+test('Asynchroner Decoder mit Fehlform: 500, nichts geschrieben (auch beim abgelehnten Promise, ohne Log)', async (t) => {
+  const logged = ['log', 'info', 'warn', 'error', 'debug'].map((name) => t.mock.method(console, name, () => {}));
+  const good = decodeFin(MOCK_FIN);
+  const decoders = [
+    async () => ({ status: 'found', data: good.data }), // ohne Quelle
+    async () => ({ status: 'error' }),
+    async () => {
+      throw new Error(`Geheimer Fehler für ${MOCK_FIN} mit Schlüssel apikey=GEHEIM`);
+    },
+    () => Promise.reject(new Error('GEHEIM abgelehnt')),
+  ];
+  for (const decode of decoders) {
+    const file = tempFile();
+    await withServer(file, async (port) => {
+      const res = await request(port, { reqPath: query(MOCK_FIN) });
+      assert.strictEqual(res.status, 500);
+      assert.strictEqual(alertOf(res.body), MESSAGE_UNAVAILABLE);
+      assert.ok(!res.body.includes('GEHEIM'));
+      assert.ok(!res.body.includes('class="card"'));
+    }, { decode });
+    assert.ok(!fs.existsSync(file));
+  }
+  for (const spy of logged) assert.strictEqual(spy.mock.callCount(), 0);
+});
+
+test('Asynchroner Decoder: Treffer wird mit der Quelle aus dem Ergebnis gespeichert und angezeigt', async () => {
+  const file = tempFile();
+  const data = { decode: [{ label: 'Make', value: 'Testmarke' }, { label: 'Model', value: 'Asyncmodell' }, { label: 'Model Year', value: 2024 }] };
+  const decode = async () => ({ status: 'found', source: 'vincario', data });
+  await withServer(file, async (port) => {
+    const res = await request(port, { reqPath: query(MOCK_FIN) });
+    assert.strictEqual(res.status, 200);
+    assert.ok(res.body.includes('<h2>Testmarke Asyncmodell</h2>'));
+    assert.ok(res.body.includes('<p class="subline">2024</p>'));
+    // die Quelle bleibt unsichtbar
+    for (const word of ['vincario', 'source', 'savedAt']) assert.ok(!res.body.includes(word), word);
+  }, { decode });
+  const stored = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.strictEqual(stored[MOCK_FIN].source, 'vincario');
+  assert.deepStrictEqual(stored[MOCK_FIN].data, data);
+});
+
+test('Asynchroner Decoder mit nodata: Hinweis, Status 200, nichts gespeichert', async () => {
+  const file = tempFile();
+  await withServer(file, async (port) => {
+    const res = await request(port, { reqPath: query(MOCK_FIN) });
+    assert.strictEqual(res.status, 200);
+    assert.ok(res.body.includes(MESSAGE_NODATA));
+    assert.ok(!res.body.includes('class="card"'));
+  }, { decode: async () => ({ status: 'nodata' }) });
+  assert.ok(!fs.existsSync(file));
 });
 
 test('Schreibfehler beim Speichern: 500 mit neutraler Meldung, Datei unverändert, keine Karte', async (t) => {
@@ -426,7 +483,7 @@ test('FIN taucht während der Abfrage im Speicher auf: vorhandener Eintrag gilt,
 });
 
 test('Daten mit HTML werden auch bei neuem Eintrag escaped', async () => {
-  const decode = () => ({ status: 'found', data: { decode: [{ label: 'Make', value: '<script>alert(1)</script>' }] } });
+  const decode = () => ({ status: 'found', source: 'mock', data: { decode: [{ label: 'Make', value: '<script>alert(1)</script>' }] } });
   await withServer(tempFile(), async (port) => {
     const res = await request(port, { reqPath: query(MOCK_FIN) });
     assert.ok(!res.body.includes('<script>'));

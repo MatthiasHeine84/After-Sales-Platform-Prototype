@@ -48,6 +48,7 @@ test('Mock-FINs liefern found mit decode-Liste aus label, value und optional id'
   for (const fin of MOCK_FINS) {
     const result = decodeFin(fin);
     assert.strictEqual(result.status, 'found', fin);
+    assert.strictEqual(result.source, 'mock', fin);
     assert.ok(Array.isArray(result.data.decode), fin);
     for (const item of result.data.decode) {
       const keys = Object.keys(item).sort();
