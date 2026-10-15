@@ -5,16 +5,16 @@ Gültige, im Speicher unbekannte FIN: Mock-Decoder liefert einen Datensatz, er w
 
 ## Ablauf
 1. validateFin. 2. lookupFin: found, dann Karte. error, dann Meldung "Daten momentan nicht verfügbar." unknown, dann 3.
-3. decodeFin(fin) in src/decoder/mock.js liefert {status:'found', data} | {status:'nodata'} | {status:'error'}.
-   found: saveFin(fin, data, 'mock'), dann Karte. nodata: Meldung, nichts speichern. error: "Daten momentan nicht verfügbar."
+3. decodeFin(fin) liefert {status:'found', source, data} | {status:'nodata'} | {status:'error'}. Der Mock-Decoder liegt ab Spec 03b unter test/helpers/mock-decoder.js (source: 'mock'), der echte Decoder in src/decoder/vincario.js (source: 'vincario').
+   found: saveFin(fin, data, source) mit der Quelle aus dem Ergebnis, dann Karte. nodata: Meldung, nichts speichern. error: "Daten momentan nicht verfügbar."
 Die Schnittstelle decodeFin(fin) bleibt in Spec 03 gleich, nur die Quelle wechselt.
 
 ## Datenformat
 data = { decode: [ { label, value, id? }, ... ] }. Aufbau wie in den echten Vincario-Antworten der Proben (03a): manche Einträge tragen zusätzlich eine Zahl `id`. Werte können Text, Zahl, Text-Zahl (z. B. "5") oder Liste sein.
-Speichereintrag wie bisher: { savedAt, source: "mock", data }.
+Speichereintrag wie bisher: { savedAt, source, data }, source = "mock" bzw. ab Spec 03b "vincario".
 
 ## Mock
-Drei erfundene FINs fest im Code: TESTMKA0000000001 bis TESTMKA0000000003. Keine echten FINs. Jede andere FIN: nodata.
+Drei erfundene FINs fest im Mock (ab Spec 03b nur noch für Tests, test/helpers/mock-decoder.js): TESTMKA0000000001 bis TESTMKA0000000003. Keine echten FINs. Jede andere FIN: nodata.
 - 01: die Labels der ID.4-Probe (41 Einträge, Reihenfolge, `id`-Felder und Werttypen wie in der Probe).
 - 02: die Labels der Polo-Probe (30 Einträge, ebenso).
 - 03: nur Make, Model, Model Year.
