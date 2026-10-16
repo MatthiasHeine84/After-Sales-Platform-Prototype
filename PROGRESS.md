@@ -25,6 +25,8 @@
 - Offen: (1) Live-Test durch Matthias im eigenen Terminal, ein Abruf mit der eigenen FIN (1 Credit, Guthaben laut Dashboard 18 auf 17). Bisher nie mit echten Keys über den Server gelaufen. (2) Sicherheitscheck F23 vor jedem Push. (3) Offene Punkte aus Spec 03b (Fehlerform von `decode` bei Nicht-Treffern, Modelljahr, Vincario-T&C).
 - Spec 04a (VINdata-Probe) umgesetzt, `--echt`-Lauf steht aus: `docs/specs/04a-vindata-probe.md`, Hilfsfunktionen in `src/vindata-probe-lib.js` mit Tests in `test/vindata-probe.test.js` (`npm test` grün, 131 Tests), Skript `scratch/probe-vindata.js` (gitignored, Trockenlauf geprüft, kein Netzaufruf). Nur Matthias führt `--echt` aus; danach Auswertung von `data/vindata-probe-N.masked.json` und Ergebnisse hier eintragen.
 - Offen für 04a: Restguthaben und Monatslimit laut VINdata-Dashboard, Nutzungsbedingungen (Speichern, öffentliches Repo), Fehlerform von `vin-decode/v1` (in der OpenAPI-Datei nicht dokumentiert).
+- Spec 04a nach Lauf 1 angepasst: Auswertung akzeptiert camelCase und snake_case (die API liefert camelCase), neuer Modus `--auswerten <Pfad unter data/>` ohne Netz, Befunde Lauf 1 in der Spec. `npm test` grün, 145 Tests.
+- Offen: (1) Matthias wertet Lauf 1 mit `--auswerten` aus. (2) Entscheidung, wie es mit VINdata weitergeht (zweiter Lauf mit `vin-decode/v1` oder Anbindung als eigene Spec). (3) Nutzungsbedingungen und Kosten pro Abruf.
 
 ## Texte der Oberfläche (freigegeben)
 

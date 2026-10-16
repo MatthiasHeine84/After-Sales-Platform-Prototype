@@ -16,6 +16,10 @@ Freigabe: Echte Aufrufe (`--echt`) führt nur Matthias im eigenen Terminal aus, 
 ```
 node scratch/probe-vindata.js <FIN> [--echt] [--endpoint vin-decode|vin-decode/v1] [--lang xx]
 ```
+```
+node scratch/probe-vindata.js --auswerten data/vindata-probe-N.json [<FIN>]
+```
+- `--auswerten <Pfad>`: Auswertung einer vorhandenen Datei ohne Netz. Der Pfad muss unter `data/` liegen (nur `.json`, Links aus `data/` heraus werden abgelehnt). Kein Key, kein `fetch`, keine neuen Dateien, Ausgabe wie bei `--echt` (ohne Status und Header, die stehen nicht in der Datei), alles maskiert. Die FIN dient nur zum Maskieren: aus dem Argument, sonst aus dem Feld `vin` der Datei. Ist sie nicht bestimmbar, bricht das Skript ab, statt unmaskiert auszugeben. Eine bereits maskierte Datei (`vin` mit `***`) wird ohne FIN ausgewertet. Nicht zusammen mit `--echt`.
 - Ohne `--echt`: Dry-Run. Zeigt Pfad ohne `vin`-Wert (bei v1 nur der Platzhalter `vin=<FIN>`), Header-Name, FIN nur als `ABC***`, "Key vorhanden: ja/nein". Kein Netzaufruf, nie ein Key-Wert.
 - Standard-Endpoint: `vin-decode`. `--lang` nur mit `vin-decode/v1` und nur mit den oben genannten Codes.
 - Unbekannte Schalter, ungültiger `--lang`, `--lang` mit `vin-decode`: Abbruch vor dem Lesen des Keys.
@@ -30,11 +34,13 @@ node scratch/probe-vindata.js <FIN> [--echt] [--endpoint vin-decode|vin-decode/v
 
 ## Terminalausgabe bei `--echt`
 HTTP-Status, Dauer in ms, Content-Type, nur Header mit `ratelimit`, `usage`, `remaining`, `credit`, `quota` im Namen sowie `retry-after` (keine Cookies). Bei Fehlern `error` und `details` (maskiert, gekürzt). Sonst:
-- `source` und `cached_at` (bei v1: "fehlt").
+- `source` und `cachedAt` (auch als `cached_at` gefunden; bei v1: "fehlt").
 - Fahrzeugobjekt: `vehicle` bzw. bei v1 `normalized` (die Ausgabe nennt, welches).
-- Für `year`, `production_date`, `series`, `model`, `variant`, `engine_code`, `engine_description`, `system_power_kw`, `transmission_type`, `transmission_code`, `body_type`, `fuel_type`: Wert, Typ, Unterscheidung null/fehlt.
-- `engine_code`: enthält er Leerzeichen oder mehr als 6 Zeichen?
-- `options` und `all_options`: Länge beider, inhaltlich identisch, Anteil der Codes nach `/^p[0-9a-z]{3}$/` (ohne `i`; zusätzlich Anzahl, die nur mit `i` passt), Anzahl Einträge mit leerem Code. Keine Beschreibungstexte.
+- Feldnamen: Die Auswertung akzeptiert snake_case und camelCase und nennt die gefundene Schreibweise, wenn sie vom angefragten Namen (camelCase) abweicht (siehe Befunde Lauf 1).
+- Für `year`, `productionDate`, `series`, `model`, `variant`, `typeCode`, `engineCode`, `engineDescription`, `systemPowerKw`, `transmissionType`, `transmissionCode`, `bodyType`, `fuelType`, `driveType`, `steeringSide`: Wert, Typ, Unterscheidung null/fehlt.
+- Anzahl Felder im Fahrzeugobjekt (ohne `options` und `allOptions`), davon null, davon nicht null.
+- `engineCode`: enthält er Leerzeichen oder mehr als 6 Zeichen? Beginnt `engineDescription` mit dem `engineCode` (exakt, und ohne Leerraum verglichen)?
+- `options` und `allOptions` (auch als `all_options` gefunden): Länge beider, inhaltlich identisch, Anteil der Codes nach `/^p[0-9a-z]{3}$/` (ohne `i`; zusätzlich Anzahl, die nur mit `i` passt), Anzahl Einträge mit leerem Code. Keine Beschreibungstexte.
 - Vollständige Feldliste (Pfad, Typ, Array-Länge), ebenfalls maskiert.
 
 ## Hilfsfunktionen
@@ -46,17 +52,30 @@ Liegen in `src/vindata-probe-lib.js` (im Repo, reine Funktionen ohne Netz, Datei
 - Dry-Run: Ausgabe enthält weder Fake-Key noch die übergebene FIN (auch nicht für v1 und mit `lang`), aber Pfad und Header-Name; bei v1 nur der Platzhalter `vin=<FIN>`.
 - FIN-Vorabprüfung: zu kurz, I/O/Q, gültig.
 - Argumente: unbekannter Schalter, `--lang` mit `vin-decode`, ungültiger Code.
-- `compareOptions`, `checkEngineCode`, `describeField` (fehlt/null/vorhanden).
+- `compareOptions` (auch `all_options`), `checkEngineCode`, `checkEngineDescription`, `describeField` (fehlt/null/vorhanden, snake_case und camelCase, gefundene Schreibweise), `countVehicleFields`.
+- Auswertung (`evaluateResponse`, gemeinsame Logik von `--echt` und `--auswerten`) mit Fake-Antworten in beiden Schreibweisen und für v1 (`normalized`): FIN und Beschreibungstexte nie im Klartext; Fehlerantwort (error/details), HTTP-Fehler, kein JSON (HTML, leer), unerwartete Form.
+- Pfadprüfung für `--auswerten` (`resolveDataFile`, `isInsideDir`): nur `.json` unter `data/`, abgelehnt: außerhalb, `..`, Verzeichnis selbst, andere Endung, leer.
 - `pickHeaders`: erfasst `ratelimit`, `usage`, `remaining`, `credit`, `quota`, `retry-after`; ignoriert Cookies.
 - `nextProbeNumber`: zählt hoch, überschreibt nie.
 - Fake-Env: Die Key-Auswahl liest nur `VINDATA_API_KEY`; ein Fake-Env mit weiteren Variablen (andere Keys, Secrets) taucht in keiner Ausgabe der Lib auf.
 
 ## Auswertungspunkte
-- Welche der 12 Fahrzeugfelder sind gefüllt, null oder fehlend; Format von `engine_code`.
-- Bedeutung von `options` gegenüber `all_options`; Anteil der P-Codes; leere Codes.
+- Welche der 15 Fahrzeugfelder sind gefüllt, null oder fehlend; Format von `engineCode`.
+- Bedeutung von `options` gegenüber `allOptions`; Anteil der P-Codes; leere Codes.
 - Unterschiede `vin-decode` und `v1` (Struktur, `lang`, Dauer).
-- `source` cache oder live; `cached_at`.
+- `source` cache oder live; `cachedAt`.
 - Credits und Limit-Header; Fehlerform (400/401/403/429/502, nicht-JSON).
+
+## Befunde Lauf 1
+Ein echter Aufruf von `vin-decode` (Datei `data/vindata-probe-1.json`, nicht im Repo). Die Auswertung erfolgte durch Matthias; Claude Code hat die Datei nicht gelesen. Die Werte unten stammen aus seinem Befund.
+
+- **Feldnamen: camelCase statt snake_case.** Die API liefert `productionDate`, `engineCode`, `engineDescription`, `systemPowerKw`, `transmissionType`, `transmissionCode`, `fuelType`, `typeCode`, `driveType`, `steeringSide`, `options`, `allOptions`. Die OpenAPI-Datei nennt snake_case (diese Spec weicht davon ab). Die erste Auswertung meldete deshalb fälschlich "fehlt". Seitdem prüft die Auswertung beide Schreibweisen (siehe oben).
+- **Cache-Treffer zählt als API-Call.**
+- **Keine Limit-Header.**
+- **Antwortzeit:** 3,1 s bei `source` "cache".
+- **Optionen:** `options` und `allOptions` haben je 160 Einträge, darunter ein fehlerhafter Code (`ls9r/`, entspricht nicht dem Muster `p` plus 3 Zeichen).
+- **Vorhanden:** `transmissionCode` und `engineCode`. **Fehlt:** `bodyType`.
+- **Feature-Flags:** rund 150 Felder sind immer null.
 
 ## Offene Punkte
 Kosten pro Abruf und Monatslimit (Dashboard), Nutzungsbedingungen (Speichern, öffentliches Repo, Quellenangabe), Abweichungen der Fehlerform bei v1.
