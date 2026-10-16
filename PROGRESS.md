@@ -23,6 +23,8 @@
 - Teststand nach F24: `npm test` grün, 76 Tests.
 - Spec 03b umgesetzt (Code und Tests, Commits `35dc5ca`, `4b366b8`, `42a8b55`, `5822b44`): `src/decoder/vincario.js` (Zähler max. 3 Versuche, Deduplizierung, Fehlerauswertung), Server async mit Quelle aus dem Decoder-Ergebnis, Mock unter `test/helpers/mock-decoder.js`, Standard-Decoder ohne Keys, Keys nur im Startblock (`.env` aus dem Projektordner). Fake-fetch-Tests, kein echter API-Aufruf. `npm test` grün, 103 Tests (der Helfer unter `test/helpers/` zählt als ein leerer Test mit).
 - Offen: (1) Live-Test durch Matthias im eigenen Terminal, ein Abruf mit der eigenen FIN (1 Credit, Guthaben laut Dashboard 18 auf 17). Bisher nie mit echten Keys über den Server gelaufen. (2) Sicherheitscheck F23 vor jedem Push. (3) Offene Punkte aus Spec 03b (Fehlerform von `decode` bei Nicht-Treffern, Modelljahr, Vincario-T&C).
+- Spec 04a (VINdata-Probe) umgesetzt, `--echt`-Lauf steht aus: `docs/specs/04a-vindata-probe.md`, Hilfsfunktionen in `src/vindata-probe-lib.js` mit Tests in `test/vindata-probe.test.js` (`npm test` grün, 131 Tests), Skript `scratch/probe-vindata.js` (gitignored, Trockenlauf geprüft, kein Netzaufruf). Nur Matthias führt `--echt` aus; danach Auswertung von `data/vindata-probe-N.masked.json` und Ergebnisse hier eintragen.
+- Offen für 04a: Restguthaben und Monatslimit laut VINdata-Dashboard, Nutzungsbedingungen (Speichern, öffentliches Repo), Fehlerform von `vin-decode/v1` (in der OpenAPI-Datei nicht dokumentiert).
 
 ## Texte der Oberfläche (freigegeben)
 
